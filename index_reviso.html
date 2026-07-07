@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revisor SST · A&amp;R</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+  :root{
+    --brand:#0E6E5C;
+    --brand-dark:#0B564A;
+    --brand-soft:#E4F1EC;
+    --bg:#F6F7F5;
+    --card:#FFFFFF;
+    --ink:#1B1D1B;
+    --ink-soft:#6B7268;
+    --border:#E3E6E0;
+
+    --grave:#D14343;
+    --grave-soft:#FBEAEA;
+    --media:#CB8B2A;
+    --media-soft:#FBF1DA;
+    --atencao:#3B6FA6;
+    --atencao-soft:#E8EFF7;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;}
+  ::selection{background:var(--brand-soft);}
+
+  .shell{max-width:920px;margin:0 auto;padding:28px 20px 70px;}
+
+  /* ---------- Topbar ---------- */
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:26px;}
+  .brandmark{display:flex;align-items:center;gap:10px;}
+  .brandmark .dot{width:9px;height:9px;border-radius:50%;background:var(--brand);}
+  .brandmark .name{font-weight:800;font-size:16.5px;letter-spacing:-0.01em;}
+  .brandmark .sub{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-top:1px;}
+  .topbar-actions{display:flex;gap:8px;}
+
+  .btn{
+    font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;
+    border:1px solid var(--brand);background:var(--brand);color:#fff;
+    padding:10px 18px;border-radius:8px;transition:.15s;
+  }
+  .btn:hover{background:var(--brand-dark);border-color:var(--brand-dark);}
+  .btn:disabled{background:#C7CBC3;border-color:#C7CBC3;cursor:not-allowed;}
+  .btn-outline{background:transparent;color:var(--ink);border:1px solid var(--border);}
+  .btn-outline:hover{border-color:var(--ink);background:transparent;}
+  .btn-sm{padding:7px 13px;font-size:12px;border-radius:7px;}
+
+  /* ---------- Hero / intro ---------- */
+  .hero{margin-bottom:24px;}
+  .hero h1{font-size:24px;font-weight:800;letter-spacing:-0.015em;margin:0 0 6px;}
+  .hero p{font-size:14px;color:var(--ink-soft);margin:0;max-width:560px;line-height:1.55;}
+
+  /* ---------- Card ---------- */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 2px rgba(20,30,25,0.04);}
+  .card-body{padding:22px;}
+
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:7px;}
+  select{
+    width:100%;font-family:'Inter',sans-serif;font-size:13.5px;color:var(--ink);
+    background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;
+  }
+  select:focus{outline:2px solid var(--brand);outline-offset:1px;}
+
+  /* ---------- Drop zone ---------- */
+  .dropzone{
+    border:2px dashed var(--border);border-radius:12px;padding:36px 20px;text-align:center;
+    cursor:pointer;transition:.15s;background:#FBFCFB;
+  }
+  .dropzone:hover, .dropzone.dragover{border-color:var(--brand);background:var(--brand-soft);}
+  .dropzone .icon{font-size:30px;margin-bottom:10px;color:var(--brand);}
+  .dropzone .main-txt{font-size:14px;font-weight:600;margin-bottom:3px;}
+  .dropzone .sub-txt{font-size:12px;color:var(--ink-soft);}
+  #pdfInput{display:none;}
+
+  .file-chip{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:var(--brand-soft);border:1px solid var(--brand);border-radius:10px;
+    padding:12px 14px;
+  }
+  .file-chip-left{display:flex;align-items:center;gap:10px;min-width:0;}
+  .file-chip .fi-icon{font-size:20px;flex-shrink:0;}
+  .file-chip .fi-text{min-width:0;}
+  .file-chip .fi-name{font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px;}
+  .file-chip .fi-meta{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);}
+  .file-chip .fi-remove{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);
+    background:transparent;border:1px solid var(--border);border-radius:6px;padding:5px 9px;cursor:pointer;flex-shrink:0;
+  }
+  .file-chip .fi-remove:hover{border-color:var(--grave);color:var(--grave);}
+
+  .extract-status{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--brand);margin-top:8px;}
+
+  .error-box{
+    padding:13px 15px;background:var(--grave-soft);border:1px solid var(--grave);border-radius:10px;
+    font-size:13px;color:var(--grave);margin-top:12px;
+  }
+
+  /* ---------- Loading ---------- */
+  .loading-panel{padding:70px 20px;text-align:center;color:var(--ink-soft);}
+  .spinner{
+    width:34px;height:34px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--brand);
+    margin:0 auto 16px;animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-panel .step{font-size:13.5px;font-weight:600;}
+
+  /* ---------- Report ---------- */
+  #reportView{display:none;}
+  .toolbar-report{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .toolbar-report .actions{display:flex;gap:8px;}
+
+  .report-sheet{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:36px 40px;}
+  .report-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--brand);font-weight:600;margin-bottom:6px;}
+  .report-title{font-size:22px;font-weight:800;letter-spacing:-0.01em;margin:0 0 4px;}
+  .report-subtitle{font-size:13.5px;color:var(--ink-soft);margin:0 0 2px;}
+  .report-meta{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#9a9a92;margin:0 0 18px;}
+
+  .sec-block{margin-top:26px;}
+  .sec-title{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;margin-bottom:12px;}
+  .sec-num{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:22px;height:22px;border-radius:6px;background:var(--brand);color:#fff;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;flex-shrink:0;
+  }
+
+  .finding{border:1px solid var(--border);border-left-width:4px;border-radius:10px;padding:13px 15px;margin-bottom:10px;background:#FCFDFC;}
+  .finding.grave{border-left-color:var(--grave);}
+  .finding.media{border-left-color:var(--media);}
+  .finding.baixa,.finding.verificar{border-left-color:var(--atencao);}
+
+  .finding-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:5px;}
+  .finding-title{font-size:13.5px;font-weight:700;}
+  .badge{
+    font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:.05em;
+    color:#fff;padding:3px 9px;border-radius:5px;white-space:nowrap;flex-shrink:0;
+  }
+  .badge.grave{background:var(--grave);}
+  .badge.media{background:var(--media);}
+  .badge.baixa,.badge.verificar{background:var(--atencao);}
+
+  .finding-desc{font-size:13px;line-height:1.58;color:#333;}
+  .finding-desc b{color:var(--brand-dark);}
+
+  .recs-list{list-style:none;margin:0;padding:0;}
+  .recs-list li{
+    display:flex;gap:10px;font-size:13px;line-height:1.55;color:#2c2c2c;margin-bottom:9px;
+  }
+  .recs-list .rec-num{
+    flex-shrink:0;width:20px;height:20px;border-radius:5px;background:var(--brand-soft);color:var(--brand-dark);
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+  }
+
+  .report-footer{
+    margin-top:26px;padding-top:16px;border-top:1px solid var(--border);
+    font-size:11px;color:var(--ink-soft);line-height:1.6;
+  }
+
+  @media print{
+    body{background:#fff;}
+    .topbar,.toolbar-report,#formView{display:none !important;}
+    .shell{max-width:none;padding:0;}
+    .report-sheet{border:none;border-radius:0;padding:8mm 10mm;}
+  }
+  @media(max-width:600px){
+    .file-chip .fi-name{max-width:150px;}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="brandmark">
+      <span class="dot"></span>
+      <div>
+        <div class="name">Revisor SST</div>
+        <div class="sub">A&amp;R Assessoria Ambiental e Segurança do Trabalho</div>
+      </div>
+    </div>
+    <div class="topbar-actions" id="topActions">
+      <button class="btn btn-outline btn-sm" id="settingsBtn">⚙ Chave de API</button>
+    </div>
+  </div>
+
+  <!-- ============ FORM VIEW ============ -->
+  <div id="formView">
+    <div class="hero">
+      <h1>Revisão automática de documentos técnicos</h1>
+      <p>Envie o PDF de um laudo de SST (AET, PGR, PCMSO, LTCAT, PPP) e receba um parecer técnico de inconsistências, pronto para revisão da equipe.</p>
+    </div>
+
+    <div class="card" id="settingsCard" style="display:none;margin-bottom:16px;">
+      <div class="card-body">
+        <div class="field" style="margin-bottom:10px;">
+          <label>Chave de API da Anthropic</label>
+          <input type="password" id="apiKeyInput" placeholder="sk-ant-..." style="width:100%;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink);background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
+        </div>
+        <div class="extract-status" style="color:var(--ink-soft);">
+          Fica apenas na memória desta aba do navegador — nunca é enviada a nenhum servidor além da API oficial da Anthropic. Obtenha a sua em
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+
+        <div class="field">
+          <label>Tipo de documento</label>
+          <select id="docType">
+            <option value="AET">AET — Análise Ergonômica do Trabalho</option>
+            <option value="PGR">PGR — Programa de Gerenciamento de Riscos</option>
+            <option value="PCMSO">PCMSO</option>
+            <option value="LTCAT">LTCAT</option>
+            <option value="PPP">PPP — Perfil Profissiográfico Previdenciário</option>
+            <option value="GENERICO">Outro documento de SST</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Documento em PDF</label>
+          <input type="file" id="pdfInput" accept="application/pdf">
+          <div id="dropzoneSlot">
+            <div class="dropzone" id="dropzone">
+              <div class="icon">⇪</div>
+              <div class="main-txt">Arraste o PDF aqui ou clique para selecionar</div>
+              <div class="sub-txt">Apenas arquivos .pdf</div>
+            </div>
+          </div>
+          <div id="extractStatus"></div>
+        </div>
+
+        <button class="btn" id="reviewBtn" style="width:100%;" disabled>Gerar parecer técnico</button>
+        <div id="errorSlot"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LOADING ============ -->
+  <div id="loadingView" style="display:none;">
+    <div class="loading-panel">
+      <div class="spinner"></div>
+      <div class="step" id="loadingStep">Analisando o documento...</div>
+    </div>
+  </div>
+
+  <!-- ============ REPORT VIEW ============ -->
+  <div id="reportView">
+    <div class="toolbar-report">
+      <button class="btn btn-outline btn-sm" id="backBtn">← Nova revisão</button>
+      <div class="actions">
+        <button class="btn btn-sm" id="printBtn">Baixar PDF</button>
+      </div>
+    </div>
+    <div class="report-sheet" id="reportSheet"></div>
+  </div>
+
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const docTypeLabels = {
+  AET: "Análise Ergonômica do Trabalho (AET)",
+  PGR: "Programa de Gerenciamento de Riscos (PGR)",
+  PCMSO: "Programa de Controle Médico de Saúde Ocupacional (PCMSO)",
+  LTCAT: "Laudo Técnico das Condições Ambientais do Trabalho (LTCAT)",
+  PPP: "Perfil Profissiográfico Previdenciário (PPP)",
+  GENERICO: "documento técnico de Segurança e Saúde no Trabalho"
+};
+
+const pdfInput = document.getElementById('pdfInput');
+const dropzoneSlot = document.getElementById('dropzoneSlot');
+const dropzone = document.getElementById('dropzone');
+const extractStatus = document.getElementById('extractStatus');
+const reviewBtn = document.getElementById('reviewBtn');
+const errorSlot = document.getElementById('errorSlot');
+
+const formView = document.getElementById('formView');
+const loadingView = document.getElementById('loadingView');
+const loadingStep = document.getElementById('loadingStep');
+const reportView = document.getElementById('reportView');
+const reportSheet = document.getElementById('reportSheet');
+const backBtn = document.getElementById('backBtn');
+const printBtn = document.getElementById('printBtn');
+
+let extractedText = "";
+let currentFile = null;
+let apiKey = "";
+
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsCard = document.getElementById('settingsCard');
+const apiKeyInput = document.getElementById('apiKeyInput');
+
+settingsBtn.addEventListener('click', () => {
+  settingsCard.style.display = settingsCard.style.display === 'none' ? 'block' : 'none';
+});
+apiKeyInput.addEventListener('input', () => { apiKey = apiKeyInput.value.trim(); });
+
+dropzone.addEventListener('click', () => pdfInput.click());
+dropzone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', ()=> dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', (e)=>{
+  e.preventDefault(); dropzone.classList.remove('dragover');
+  if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+pdfInput.addEventListener('change', (e)=>{
+  if(e.target.files.length) handleFile(e.target.files[0]);
+});
+
+function fmtSize(bytes){
+  if(bytes < 1024) return bytes + " B";
+  if(bytes < 1024*1024) return (bytes/1024).toFixed(0) + " KB";
+  return (bytes/(1024*1024)).toFixed(1) + " MB";
+}
+
+function renderFileChip(file, pages){
+  dropzoneSlot.innerHTML = `
+    <div class="file-chip">
+      <div class="file-chip-left">
+        <span class="fi-icon">📄</span>
+        <div class="fi-text">
+          <div class="fi-name">${file.name}</div>
+          <div class="fi-meta">${fmtSize(file.size)} · ${pages} página${pages===1?'':'s'}</div>
+        </div>
+      </div>
+      <button class="fi-remove" id="removeFileBtn">Remover</button>
+    </div>
+  `;
+  document.getElementById('removeFileBtn').addEventListener('click', resetFile);
+}
+
+function resetFile(){
+  extractedText = "";
+  currentFile = null;
+  pdfInput.value = "";
+  extractStatus.innerHTML = "";
+  reviewBtn.disabled = true;
+  dropzoneSlot.innerHTML = `
+    <div class="dropzone" id="dropzone">
+      <div class="icon">⇪</div>
+      <div class="main-txt">Arraste o PDF aqui ou clique para selecionar</div>
+      <div class="sub-txt">Apenas arquivos .pdf</div>
+    </div>
+  `;
+  const dz = document.getElementById('dropzone');
+  dz.addEventListener('click', () => pdfInput.click());
+  dz.addEventListener('dragover', (e)=>{ e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', ()=> dz.classList.remove('dragover'));
+  dz.addEventListener('drop', (e)=>{
+    e.preventDefault(); dz.classList.remove('dragover');
+    if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+}
+
+async function handleFile(file){
+  errorSlot.innerHTML = "";
+  if(file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")){
+    errorSlot.innerHTML = `<div class="error-box">Envie um arquivo em formato PDF.</div>`;
+    return;
+  }
+  currentFile = file;
+  reviewBtn.disabled = true;
+  extractStatus.innerHTML = `<div class="extract-status">Extraindo texto do PDF...</div>`;
+
+  try{
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let text = "";
+    for(let i=1;i<=pdf.numPages;i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const strings = content.items.map(it => it.str);
+      text += strings.join(" ") + "\n\n";
+    }
+    extractedText = text.trim();
+
+    if(extractedText.length < 30){
+      extractStatus.innerHTML = `<div class="extract-status" style="color:var(--grave);">Não foi possível extrair texto suficiente. O PDF pode ser digitalizado (imagem) — tente um arquivo com texto selecionável.</div>`;
+      renderFileChip(file, pdf.numPages);
+      return;
+    }
+
+    extractStatus.innerHTML = `<div class="extract-status">Texto extraído com sucesso (${extractedText.length.toLocaleString('pt-BR')} caracteres).</div>`;
+    renderFileChip(file, pdf.numPages);
+    reviewBtn.disabled = false;
+
+  }catch(err){
+    console.error(err);
+    extractStatus.innerHTML = "";
+    errorSlot.innerHTML = `<div class="error-box">Não foi possível ler o PDF. Verifique se o arquivo não está corrompido ou protegido por senha.</div>`;
+  }
+}
+
+function showView(view){
+  formView.style.display = view === 'form' ? 'block' : 'none';
+  loadingView.style.display = view === 'loading' ? 'block' : 'none';
+  reportView.style.display = view === 'report' ? 'block' : 'none';
+}
+
+backBtn.addEventListener('click', () => { showView('form'); });
+printBtn.addEventListener('click', () => window.print());
+
+const badgeMeta = {
+  grave:     { cls:"grave",     label:"GRAVE" },
+  media:     { cls:"media",     label:"MÉDIA" },
+  baixa:     { cls:"baixa",     label:"ATENÇÃO" },
+  verificar: { cls:"verificar", label:"VERIFICAR" }
+};
+
+function esc(s){
+  if(!s) return "";
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function renderReport(data, docTypeLabel){
+  const today = new Date().toLocaleDateString('pt-BR');
+  let html = `
+    <div class="report-eyebrow">Parecer Técnico de Revisão</div>
+    <div class="report-title">${esc(data.titulo_documento || docTypeLabel)}</div>
+    <div class="report-subtitle">${esc(data.empresa ? ('Empresa: ' + data.empresa) : '')}</div>
+    <div class="report-meta">Data do parecer: ${today}${currentFile ? ' · Arquivo: ' + esc(currentFile.name) : ''}</div>
+    <p style="font-size:13.5px;line-height:1.6;color:#333;margin:14px 0 0;">${esc(data.introducao || 'Este parecer foi elaborado a partir da revisão técnica do documento apresentado, com o objetivo de identificar inconsistências que possam comprometer sua validade perante fiscalização ou uso oficial.')}</p>
+  `;
+
+  (data.secoes || []).forEach(sec => {
+    html += `
+      <div class="sec-block">
+        <div class="sec-title"><span class="sec-num">${esc(sec.numero)}</span>${esc(sec.titulo)}</div>
+    `;
+    (sec.itens || []).forEach(it => {
+      const b = badgeMeta[it.gravidade] || badgeMeta.baixa;
+      html += `
+        <div class="finding ${b.cls}">
+          <div class="finding-top">
+            <div class="finding-title">${esc(it.numero)} — ${esc(it.titulo)}</div>
+            <div class="badge ${b.cls}">${b.label}</div>
+          </div>
+          <div class="finding-desc">${esc(it.descricao)}</div>
+        </div>
+      `;
+    });
+    html += `</div>`;
+  });
+
+  if((data.recomendacoes||[]).length){
+    const numRec = (data.secoes||[]).length + 1;
+    html += `
+      <div class="sec-block">
+        <div class="sec-title"><span class="sec-num">${numRec}</span>Recomendações</div>
+        <ul class="recs-list">
+    `;
+    data.recomendacoes.forEach((r,i) => {
+      html += `<li><span class="rec-num">${i+1}</span><span>${esc(r)}</span></li>`;
+    });
+    html += `</ul></div>`;
+  }
+
+  html += `
+    <div class="report-footer">
+      ${esc(data.observacao_rodape || 'Este parecer tem caráter de revisão técnica preliminar, elaborado com base exclusivamente no conteúdo do documento fornecido. Recomenda-se validação final por profissional habilitado antes do uso oficial.')}
+    </div>
+  `;
+
+  reportSheet.innerHTML = html;
+}
+
+reviewBtn.addEventListener('click', async () => {
+  if(!extractedText){
+    errorSlot.innerHTML = `<div class="error-box">Envie um PDF válido antes de gerar o parecer.</div>`;
+    return;
+  }
+  if(!apiKey){
+    errorSlot.innerHTML = `<div class="error-box">Informe sua chave de API da Anthropic em "⚙ Chave de API" antes de gerar o parecer.</div>`;
+    settingsCard.style.display = 'block';
+    return;
+  }
+
+  const docType = document.getElementById('docType').value;
+  const label = docTypeLabels[docType];
+
+  errorSlot.innerHTML = "";
+  showView('loading');
+  loadingStep.textContent = "Analisando o documento e redigindo o parecer...";
+
+  const systemPrompt = `Você é um Engenheiro de Segurança do Trabalho sênior, especialista em revisão técnica de documentos de SST no Brasil (NRs, PGR, PCMSO, LTCAT, PPP, AET). Revise o documento fornecido (tipo: ${label}) e produza um PARECER TÉCNICO DE REVISÃO estruturado em seções numeradas, no mesmo estilo de um laudo profissional formal, cobrindo (quando aplicável):
+
+1. Inconsistências Cadastrais (identificação da empresa: CNPJ, razão social, dados trocados com terceiros, referências a outra empresa, contratos que não reconciliam com o quadro de trabalhadores).
+2. Inconsistências Metodológicas (contradições entre metodologia declarada e resultados apresentados, resultados genéricos demais para funções distintas, classificações incoerentes, referências normativas a verificar).
+3. Inconsistências em Checklists/Formulários (marcações simultâneas incompatíveis, respostas que contradizem a descrição da atividade).
+4. Inconsistências de Datas (divergência entre elaboração, revisão e assinatura).
+
+Inclua apenas as seções que tiverem achados reais — não force conteúdo. Adicione uma seção final de "Recomendações" objetivas e acionáveis.
+
+Responda SOMENTE em JSON válido, sem markdown, sem texto antes ou depois, seguindo exatamente este schema:
+
+{
+  "titulo_documento": "ex: Análise Ergonômica do Trabalho (AET) — Nome da Empresa Ltda.",
+  "empresa": "nome da empresa identificada no documento, se houver",
+  "introducao": "1-2 frases explicando o objetivo deste parecer para este documento específico",
+  "secoes": [
+    {
+      "numero": "1",
+      "titulo": "Inconsistências Cadastrais (Identificação da Empresa)",
+      "itens": [
+        {
+          "numero": "1.1",
+          "titulo": "título curto do achado",
+          "gravidade": "grave" | "media" | "baixa" | "verificar",
+          "descricao": "explicação técnica detalhada, citando trechos/seções específicas do documento sempre que possível"
+        }
+      ]
+    }
+  ],
+  "recomendacoes": ["recomendação objetiva 1", "recomendação objetiva 2"],
+  "observacao_rodape": "disclaimer curto sobre o caráter preliminar deste parecer"
+}
+
+Seja rigoroso, técnico e específico, citando trechos/seções reais do documento. Nunca invente números de portaria — se não tiver certeza, use gravidade "verificar". Se uma categoria não apresentar problemas, simplesmente omita a seção.`;
+
+  try{
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-5",
+        max_tokens: 4000,
+        system: systemPrompt,
+        messages: [ { role: "user", content: `Revise o seguinte documento:\n\n${extractedText}` } ]
+      })
+    });
+
+    if(!response.ok){
+      const errBody = await response.text().catch(()=> "");
+      if(response.status === 401){
+        throw new Error("Chave de API inválida ou sem permissão. Verifique a chave em ⚙ Chave de API.");
+      }
+      throw new Error(`Erro na API (status ${response.status}). ${errBody.slice(0,180)}`);
+    }
+
+    const data = await response.json();
+    const textBlocks = (data.content || []).filter(b => b.type === "text").map(b => b.text);
+    let raw = textBlocks.join("\n").trim();
+    raw = raw.replace(/^```json/i,"").replace(/^```/,"").replace(/```$/,"").trim();
+
+    let parsed;
+    try{ parsed = JSON.parse(raw); }
+    catch(e){ throw new Error("Não foi possível interpretar a resposta do modelo. Tente novamente."); }
+
+    renderReport(parsed, label);
+    showView('report');
+
+  }catch(err){
+    console.error(err);
+    showView('form');
+    errorSlot.innerHTML = `<div class="error-box"><b>Falha na revisão.</b><br>${esc(err.message || 'Erro desconhecido.')}</div>`;
+  }
+});
+</script>
+</body>
+</html>
