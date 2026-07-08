@@ -499,7 +499,7 @@ reviewBtn.addEventListener('click', async () => {
 
 Inclua apenas as seções que tiverem achados reais — não force conteúdo. Adicione uma seção final de "Recomendações" objetivas e acionáveis.
 
-Responda SOMENTE em JSON válido, sem markdown, sem texto antes ou depois, seguindo exatamente este schema:
+Responda SOMENTE em JSON válido, completo e bem formado, sem markdown, sem texto antes ou depois, sem comentários. Mantenha cada campo "descricao" objetivo (no máximo 3-4 frases) para garantir que o JSON completo caiba na resposta. Nunca interrompa o JSON pela metade. Siga exatamente este schema:
 
 {
   "titulo_documento": "ex: Análise Ergonômica do Trabalho (AET) — Nome da Empresa Ltda.",
@@ -536,7 +536,7 @@ Seja rigoroso, técnico e específico, citando trechos/seções reais do documen
       },
       body: JSON.stringify({
         model: "claude-sonnet-5",
-        max_tokens: 4000,
+        max_tokens: 8000,
         system: systemPrompt,
         messages: [ { role: "user", content: `Revise o seguinte documento:\n\n${extractedText}` } ]
       })
@@ -551,13 +551,33 @@ Seja rigoroso, técnico e específico, citando trechos/seções reais do documen
     }
 
     const data = await response.json();
+
+    if(data.stop_reason === "max_tokens"){
+      console.warn("Resposta truncada por limite de tokens.");
+    }
+
     const textBlocks = (data.content || []).filter(b => b.type === "text").map(b => b.text);
     let raw = textBlocks.join("\n").trim();
     raw = raw.replace(/^```json/i,"").replace(/^```/,"").replace(/```$/,"").trim();
 
     let parsed;
-    try{ parsed = JSON.parse(raw); }
-    catch(e){ throw new Error("Não foi possível interpretar a resposta do modelo. Tente novamente."); }
+    try{
+      parsed = JSON.parse(raw);
+    }catch(e){
+      const firstBrace = raw.indexOf('{');
+      const lastBrace = raw.lastIndexOf('}');
+      if(firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace){
+        try{
+          parsed = JSON.parse(raw.slice(firstBrace, lastBrace + 1));
+        }catch(e2){
+          console.error("JSON bruto recebido do modelo:", raw);
+          throw new Error(`Não foi possível interpretar a resposta do modelo (resposta pode ter sido cortada). Tente novamente${data.stop_reason==='max_tokens' ? ' — o documento pode ser longo demais para uma única resposta.' : '.'}`);
+        }
+      } else {
+        console.error("JSON bruto recebido do modelo:", raw);
+        throw new Error("Não foi possível interpretar a resposta do modelo. Tente novamente.");
+      }
+    }
 
     renderReport(parsed, label);
     showView('report');
